@@ -131,7 +131,7 @@ if (process.env.NODE_ENV === 'production') {
 app.use(notFound);
 app.use(errorHandler);
 
-// Définir le port
+// Définir le port: j'ai définis le port 5000 pour le développement
 const PORT = process.env.PORT || 5000;
 
 // Démarrer le serveur
