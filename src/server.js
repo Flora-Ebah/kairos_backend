@@ -19,8 +19,11 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Activer CORS
-app.use(cors());
+// Activer CORS avec les origines autorisées
+const corsOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['http://localhost:5173'];
+app.use(cors({
+  origin: corsOrigins // Utilise les origines spécifiées dans .env
+}));
 
 // Logger pour le développement
 if (process.env.NODE_ENV === 'development') {
