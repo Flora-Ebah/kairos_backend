@@ -19,10 +19,14 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Activer CORS avec les origines autorisées
-const corsOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['http://localhost:5173'];
+// Configuration CORS totalement permissive pour le débogage
 app.use(cors({
-  origin: corsOrigins // Utilise les origines spécifiées dans .env
+  origin: '*',  // Permet toutes les origines
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 // Logger pour le développement
@@ -40,6 +44,7 @@ const optionRoutes = require('./routes/optionRoutes');
 const destinationRoutes = require('./routes/destinationRoutes');
 const countryRoutes = require('./routes/countryRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
+const tarifRoutes = require('./routes/tarifRoutes');
 
 // Vérifier si un administrateur par défaut doit être créé au démarrage
 if (process.env.CREATE_DEFAULT_ADMIN === 'true') {
@@ -48,7 +53,7 @@ if (process.env.CREATE_DEFAULT_ADMIN === 'true') {
 }
 
 // Initialiser les données au démarrage
-const { initializeZones, initializeServices, initializeOptions, initializeDestinations, initializeCountries } = require('./config/seeder');
+const { initializeZones, initializeServices, initializeOptions, initializeDestinations, initializeCountries, initializeTarifs } = require('./config/seeder');
 
 // Fonction asynchrone pour exécuter les initialisations séquentiellement
 const initializeData = async () => {
@@ -97,6 +102,14 @@ const initializeData = async () => {
       console.error("Erreur lors de l'initialisation des pays:", error.message);
     }
     
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    try {
+      await initializeTarifs();
+    } catch (error) {
+      console.error("Erreur lors de l'initialisation des tarifs:", error.message);
+    }
+    
     console.log('Initialisation des données terminée avec succès');
   } catch (error) {
     console.error('Erreur lors de l\'initialisation des données:', error);
@@ -116,6 +129,7 @@ app.use('/api/options', optionRoutes);
 app.use('/api/destinations', destinationRoutes);
 app.use('/api/countries', countryRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/tarifs', tarifRoutes);
 
 // Servir les fichiers statiques en production
 if (process.env.NODE_ENV === 'production') {

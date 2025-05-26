@@ -21,6 +21,12 @@ const protect = asyncHandler(async (req, res, next) => {
       // Récupérer l'utilisateur
       req.user = await User.findById(decoded.id).select('-password');
 
+      // Vérifier si l'utilisateur existe
+      if (!req.user) {
+        res.status(401);
+        throw new Error('Utilisateur non trouvé');
+      }
+
       // Vérifier si l'utilisateur est actif
       if (!req.user.isActive) {
         res.status(401);

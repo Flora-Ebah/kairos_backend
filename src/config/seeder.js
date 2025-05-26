@@ -7,6 +7,8 @@ const Service = require('../models/Service');
 const Option = require('../models/Option');
 const Destination = require('../models/Destination');
 const Country = require('../models/Country');
+const Tarif = require('../models/Tarif');
+const { v4: uuidv4 } = require('uuid');
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -165,7 +167,7 @@ const initializeServices = async () => {
       },
       {
         service_id: 'a1421ab1-1316-4d74-9a9d-5dd5da96abaf',
-        nom: 'Mise À disposition',
+        nom: 'Mise à disposition',
         description: '',
       },
     ];
@@ -430,7 +432,7 @@ const initializeDestinations = async () => {
       {
         destination_id: 'e00fa605-d46d-4589-81d2-239cede78075',
         zone_id: regionsZoneId,
-        nom: 'GuéOrAo',
+        nom: 'Guéréo',
         description: '',
       },
       {
@@ -516,6 +518,139 @@ const initializeCountries = async () => {
   }
 };
 
+// Fonction pour initialiser les tarifs
+const initializeTarifs = async () => {
+  try {
+    await connectDB();
+    
+    console.log('Vérification de l\'existence des tarifs...');
+    
+    // Vérifier si des tarifs existent déjà
+    const tarifsCount = await Tarif.countDocuments();
+    
+    if (tarifsCount > 0) {
+      console.log(`${tarifsCount} tarifs existent déjà dans la base de données.`);
+      return;
+    }
+    
+    // Données des tarifs à créer basées sur le tableau fourni
+    const tarifsToCreate = [
+      // Dans Dakar
+      { tarif_id: uuidv4(), zone: 'Dans Dakar', destination: 'Dans Dakar', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Une heure', tarif_fcfa: 10000 },
+      { tarif_id: uuidv4(), zone: 'Dans Dakar', destination: 'Dans Dakar', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Au-delà de 3 heures (par heure)', tarif_fcfa: 8000 },
+      { tarif_id: uuidv4(), zone: 'Dans Dakar', destination: 'Dans Dakar', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Demi-journée', tarif_fcfa: 40000 },
+      { tarif_id: uuidv4(), zone: 'Dans Dakar', destination: 'Dans Dakar', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      // Aéroport
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 25000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 40000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'Utilitaire', option: 'Aller simple', tarif_fcfa: 35000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'Utilitaire', option: 'Aller/Retour', tarif_fcfa: 60000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'SUV', option: 'Aller simple', tarif_fcfa: 40000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'SUV', option: 'Aller/Retour', tarif_fcfa: 70000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'VAN (7 personnes)', option: 'Aller simple', tarif_fcfa: 55000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'VAN (7 personnes)', option: 'Aller/Retour', tarif_fcfa: 100000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'Minibus de 15 places', option: 'Aller simple', tarif_fcfa: 80000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'Minibus de 15 places', option: 'Aller/Retour', tarif_fcfa: 140000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'Minibus de 28 places', option: 'Aller simple', tarif_fcfa: 100000 },
+      { tarif_id: uuidv4(), zone: 'Aéroport', destination: 'Aéroport (AIBD)', service: 'Transfert', type_vehicule: 'Minibus de 28 places', option: 'Aller/Retour', tarif_fcfa: 180000 },
+      
+      // Régions - principales destinations
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Diamniadio', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 25000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Diamniadio', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 40000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Diamniadio', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Lac Rose', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 30000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Lac Rose', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 45000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Lac Rose', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Toubab Dialaw', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 30000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Toubab Dialaw', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 45000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Toubab Dialaw', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Popenguine', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 35000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Popenguine', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 55000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Popenguine', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Guéréo', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 35000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Guéréo', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 55000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Guéréo', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Somone', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 35000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Somone', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 55000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Somone', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Bandia', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 35000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Bandia', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 55000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Bandia', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Ngerigne', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 35000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Ngerigne', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 55000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Ngerigne', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Saly', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 35000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Saly', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 55000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Saly', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Mbour', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 35000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Mbour', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 55000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Mbour', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Nianing', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 45000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Nianing', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Warang', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 45000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Warang', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Joal', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 55000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Joal', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 65000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Fatick', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 65000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Fatick', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 65000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Kaolack', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 75000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Kaolack', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 65000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Fatala', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 90000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Fatala', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 65000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Thiès', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 35000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Thiès', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 55000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Thiès', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 55000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Lompoul', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 90000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Lompoul', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 120000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Lompoul', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 65000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Saint-Louis', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 110000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Saint-Louis', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 150000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Saint-Louis', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 65000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Louga', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 90000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Louga', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller/Retour', tarif_fcfa: 120000 },
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Louga', service: 'Mise à disposition', type_vehicule: 'Berline', option: 'Journée', tarif_fcfa: 65000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Gambie avant frontière', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 100000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Gambie', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 150000 },
+      
+      { tarif_id: uuidv4(), zone: 'Régions', destination: 'Ziguinchor', service: 'Transfert', type_vehicule: 'Berline', option: 'Aller simple', tarif_fcfa: 250000 }
+    ];
+    
+    // Créer les tarifs
+    const tarifs = await Tarif.insertMany(tarifsToCreate);
+    
+    if (tarifs && tarifs.length === tarifsToCreate.length) {
+      console.log(`${tarifs.length} tarifs ont été créés avec succès`);
+    } else {
+      console.log('Erreur lors de la création des tarifs');
+    }
+    
+  } catch (error) {
+    console.error(`Erreur lors de l'initialisation des tarifs: ${error.message}`);
+  }
+};
+
 // Exporter les fonctions pour les utiliser dans d'autres fichiers
 module.exports = { 
   createDefaultAdmin, 
@@ -523,5 +658,6 @@ module.exports = {
   initializeServices, 
   initializeOptions,
   initializeDestinations,
-  initializeCountries
+  initializeCountries,
+  initializeTarifs
 };

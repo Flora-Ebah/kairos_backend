@@ -8,12 +8,11 @@ const ReservationSchema = new Schema({
   },
   vehicule: {
     type: Schema.Types.ObjectId,
-    ref: 'Vehicule',
-    required: [true, 'Le véhicule est obligatoire']
+    ref: 'Vehicule'
   },
   conducteur: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    refPath: 'conducteurSource',
     default: null
   },
   conducteurSource: {
@@ -23,28 +22,30 @@ const ReservationSchema = new Schema({
   },
   client: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Le client est obligatoire']
+    ref: 'User'
+  },
+  clientInfo: {
+    nom: String,
+    prenom: String,
+    telephone: String,
+    email: String,
+    mois_naissance: String
   },
   service: {
     type: Schema.Types.ObjectId,
-    ref: 'Service',
-    required: [true, 'Le service est obligatoire']
+    ref: 'Service'
   },
   dateDebut: {
-    type: Date,
-    required: [true, 'La date de début est obligatoire']
+    type: Date
   },
   dateFin: {
-    type: Date,
-    required: [true, 'La date de fin est obligatoire']
+    type: Date
   },
   heureDebut: {
     type: String
   },
   lieuPrise: {
-    type: String,
-    required: [true, 'Le lieu de prise en charge est obligatoire']
+    type: String
   },
   zone: {
     type: Schema.Types.ObjectId,
@@ -56,8 +57,7 @@ const ReservationSchema = new Schema({
   },
   nombrePassagers: {
     type: Number,
-    required: [true, 'Le nombre de passagers est obligatoire'],
-    min: [1, 'Il doit y avoir au moins un passager']
+    default: 1
   },
   nombreBagages: {
     type: Number,
@@ -69,7 +69,7 @@ const ReservationSchema = new Schema({
   }],
   prixTotal: {
     type: Number,
-    required: [true, 'Le prix total est obligatoire']
+    default: 0
   },
   methodePaiement: {
     type: String,
@@ -101,6 +101,14 @@ const ReservationSchema = new Schema({
   notes: {
     type: String
   },
+  isAdminReservation: {
+    type: Boolean,
+    default: false
+  },
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
   dateCreation: {
     type: Date,
     default: Date.now
@@ -113,21 +121,19 @@ const ReservationSchema = new Schema({
   timestamps: true
 });
 
-// Pré-middleware pour générer automatiquement une référence unique
 ReservationSchema.pre('save', async function(next) {
   if (!this.reference) {
     const date = new Date();
     const year = date.getFullYear().toString().substr(-2);
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    this.reference = `RES-${year}${month}-${randomNum}`;
+    const prefix = this.isAdminReservation ? 'ADMIN' : 'RES';
+    this.reference = `${prefix}-${year}${month}-${randomNum}`;
   }
   
-  // S'assurer que options est toujours un tableau
   if (!this.options) {
     this.options = [];
   } else if (!Array.isArray(this.options)) {
-    // Si options existe mais n'est pas un tableau, le convertir en tableau
     this.options = [].concat(this.options).filter(Boolean);
   }
   

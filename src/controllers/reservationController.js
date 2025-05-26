@@ -33,6 +33,11 @@ const getReservations = asyncHandler(async (req, res) => {
       filter.vehicule = req.query.vehicule;
     }
     
+    // Filtre par type de réservation (admin ou client)
+    if (req.query.isAdminReservation) {
+      filter.isAdminReservation = req.query.isAdminReservation === 'true';
+    }
+    
     // Filtre par date (range)
     if (req.query.dateDebut && req.query.dateFin) {
       filter.dateDebut = { $gte: new Date(req.query.dateDebut) };
@@ -47,21 +52,33 @@ const getReservations = asyncHandler(async (req, res) => {
 
     const count = await Reservation.countDocuments(filter);
     
-    // Limiter les champs à retourner pour éviter les problèmes avec les documents
+    // Modifier le populate pour le conducteur
     const reservations = await Reservation.find(filter)
       .populate({
         path: 'vehicule',
         select: 'marque modele immatriculation image tarifJournalier type'
       })
       .populate('client', 'nom prenom email')
-      .populate('conducteur', 'nom prenom telephone')
+      .populate({
+        path: 'conducteur',
+        select: 'nom prenom telephone email photo',
+        refPath: 'conducteurSource'
+      })
       .populate('service', 'nom')
       .populate('zone', 'nom')
       .populate('destination', 'nom')
       .populate('options', 'nom prix')
+      .populate('createdBy', 'nom prenom')
       .sort({ dateCreation: -1 })
       .skip(skip)
       .limit(limit);
+
+    // Ajouter des logs pour le débogage
+    console.log('Réservations trouvées:', reservations.map(r => ({
+      id: r._id,
+      conducteur: r.conducteur,
+      conducteurSource: r.conducteurSource
+    })));
 
     // Nettoyer les données pour éviter les erreurs de sérialisation
     const cleanReservations = reservations.map(res => {
@@ -69,6 +86,19 @@ const getReservations = asyncHandler(async (req, res) => {
       
       // S'assurer que toutes les propriétés nécessaires existent
       if (!resObj.options) resObj.options = [];
+      
+      // Vérifier et nettoyer les données du conducteur
+      if (resObj.conducteur) {
+        // S'assurer que les propriétés essentielles sont présentes
+        resObj.conducteur = {
+          _id: resObj.conducteur._id,
+          nom: resObj.conducteur.nom || '',
+          prenom: resObj.conducteur.prenom || '',
+          telephone: resObj.conducteur.telephone || '',
+          email: resObj.conducteur.email || '',
+          photo: resObj.conducteur.photo || null
+        };
+      }
       
       return resObj;
     });
@@ -127,87 +157,82 @@ const createReservation = asyncHandler(async (req, res) => {
     nombreBagages,
     options,
     methodePaiement,
-    notes
+    notes,
+    prixTotal,
+    isAdminReservation,
+    clientInfo
   } = req.body;
 
-  // Vérifier la disponibilité du véhicule
-  const vehiculeData = await Vehicule.findById(vehicule);
-  if (!vehiculeData) {
-    res.status(404);
-    throw new Error('Véhicule non trouvé');
-  }
-  
-  if (vehiculeData.etat !== 'Disponible') {
-    res.status(400);
-    throw new Error('Ce véhicule n\'est pas disponible actuellement');
+  // Vérifier que le véhicule existe si fourni
+  if (vehicule) {
+    const vehiculeData = await Vehicule.findById(vehicule);
+    if (!vehiculeData) {
+      res.status(404);
+      throw new Error('Véhicule non trouvé');
+    }
   }
 
-  // Vérifier si le véhicule n'est pas déjà réservé pour cette période
-  const reservationExistante = await Reservation.findOne({
+  // Calculer le prix total si non fourni
+  let finalPrixTotal = prixTotal;
+  
+  if (!finalPrixTotal || finalPrixTotal <= 0) {
+    console.log('⚠️ Aucun prix total fourni, utilisation du calcul de fallback');
+    if (dateDebut && dateFin) {
+      const debut = new Date(dateDebut);
+      const fin = new Date(dateFin);
+      const diffTemps = Math.abs(fin - debut);
+      const nombreJours = Math.ceil(diffTemps / (1000 * 60 * 60 * 24)) || 1;
+      
+      finalPrixTotal = (vehiculeData?.tarifJournalier || 25000) * nombreJours;
+      console.log('💡 Prix de fallback calculé:', finalPrixTotal, 'FCFA');
+    } else {
+      finalPrixTotal = 25000; // Prix par défaut
+    }
+  } else {
+    console.log('✅ Utilisation du prix total fourni:', finalPrixTotal, 'FCFA');
+  }
+
+  // Préparer les données de la réservation
+  const reservationData = {
     vehicule,
-    $or: [
-      // Nouvelle réservation commence pendant une réservation existante
-      {
-        dateDebut: { $lte: new Date(dateDebut) },
-        dateFin: { $gte: new Date(dateDebut) }
-      },
-      // Nouvelle réservation se termine pendant une réservation existante
-      {
-        dateDebut: { $lte: new Date(dateFin) },
-        dateFin: { $gte: new Date(dateFin) }
-      },
-      // Nouvelle réservation englobe complètement une réservation existante
-      {
-        dateDebut: { $gte: new Date(dateDebut) },
-        dateFin: { $lte: new Date(dateFin) }
-      }
-    ],
-    statut: { $nin: ['annulee', 'terminee'] }
-  });
-
-  if (reservationExistante) {
-    res.status(400);
-    throw new Error('Ce véhicule est déjà réservé pour la période sélectionnée');
-  }
-
-  // Calculer le prix total (à adapter selon votre logique de tarification)
-  const debut = new Date(dateDebut);
-  const fin = new Date(dateFin);
-  const diffTemps = Math.abs(fin - debut);
-  const nombreJours = Math.ceil(diffTemps / (1000 * 60 * 60 * 24));
-  
-  // Prix de base (tarif journalier * nombre de jours)
-  let prixTotal = vehiculeData.tarifJournalier * nombreJours;
-  
-  // Ajouter le prix des options si applicable
-  if (options && options.length > 0) {
-    // Logique pour ajouter le prix des options (à implémenter)
-    // Exemple: faire une requête pour récupérer les prix des options sélectionnées
-  }
-
-  const reservation = new Reservation({
-    vehicule,
-    client: req.user._id, // L'utilisateur connecté est le client
     service,
-    dateDebut: new Date(dateDebut),
-    dateFin: new Date(dateFin),
+    dateDebut: dateDebut ? new Date(dateDebut) : new Date(),
+    dateFin: dateFin ? new Date(dateFin) : new Date(),
     heureDebut,
     lieuPrise,
     zone,
     destination,
-    nombrePassagers,
+    nombrePassagers: nombrePassagers || 1,
     nombreBagages: nombreBagages || 0,
-    options,
-    prixTotal,
-    methodePaiement,
+    options: options || [],
+    prixTotal: finalPrixTotal,
+    methodePaiement: methodePaiement || 'cash',
     notes,
     statut: 'en_attente'
-  });
+  };
 
+  // Si c'est une réservation admin
+  if (isAdminReservation) {
+    reservationData.isAdminReservation = true;
+    reservationData.createdBy = req.user._id;
+    
+    if (clientInfo) {
+      reservationData.clientInfo = clientInfo;
+    } else if (req.body.client) {
+      reservationData.client = req.body.client;
+    }
+  } else if (req.user && req.user._id) {
+    // Réservation normale par un client
+    reservationData.client = req.user._id;
+  }
+
+  const reservation = new Reservation(reservationData);
   const reservationCreated = await reservation.save();
   
-  // Mettre à jour le statut du véhicule
-  await Vehicule.findByIdAndUpdate(vehicule, { etat: 'Réservé' });
+  // Mettre à jour le statut du véhicule si un véhicule est fourni
+  if (vehicule) {
+    await Vehicule.findByIdAndUpdate(vehicule, { etat: 'Réservé' });
+  }
 
   res.status(201).json(reservationCreated);
 });
@@ -364,12 +389,19 @@ const validerReservation = asyncHandler(async (req, res) => {
 const assignerConducteur = asyncHandler(async (req, res) => {
   const { conducteurId, statut } = req.body;
   
+  console.log('Controller - Début assignerConducteur:', {
+    reservationId: req.params.id,
+    conducteurId,
+    statut
+  });
+  
   if (!conducteurId) {
     res.status(400);
     throw new Error('ID du conducteur requis');
   }
 
   const reservation = await Reservation.findById(req.params.id);
+  console.log('Réservation trouvée:', reservation);
 
   if (!reservation) {
     res.status(404);
@@ -385,11 +417,13 @@ const assignerConducteur = asyncHandler(async (req, res) => {
   // Vérifier si le conducteur existe dans UserConducteur
   let conducteur = await UserConducteur.findById(conducteurId);
   let conducteurSource = 'UserConducteur';
+  console.log('Recherche conducteur dans UserConducteur:', conducteur);
 
   // Si le conducteur n'existe pas dans UserConducteur, vérifier dans User
   if (!conducteur) {
     conducteur = await User.findById(conducteurId);
     conducteurSource = 'User';
+    console.log('Recherche conducteur dans User:', conducteur);
     
     // Vérifier si l'utilisateur est un conducteur
     if (!conducteur || conducteur.role !== 'conducteur') {
@@ -410,25 +444,29 @@ const assignerConducteur = asyncHandler(async (req, res) => {
     reservation.statut = 'confirmee';
   }
   
-  const updatedReservation = await reservation.save();
-
-  // Commenté la partie sur les notifications qui cause l'erreur
-  /* 
-  // Envoyer une notification au conducteur
   try {
-    await notificationService.sendNotification(
-      conducteur._id,
-      'Nouvelle assignation',
-      `Vous avez été assigné à une réservation pour ${reservation.service}`,
-      'reservation',
-      reservation._id
-    );
-  } catch (error) {
-    console.error('Erreur lors de l\'envoi de la notification:', error);
-  }
-  */
+    const updatedReservation = await reservation.save();
+    console.log('Réservation mise à jour avec succès:', updatedReservation);
+    
+    // Mettre à jour le véhicule si présent
+    if (reservation.vehicule) {
+      try {
+        await Vehicule.findByIdAndUpdate(reservation.vehicule, {
+          conducteurAssigne: conducteurId,
+          etat: 'En course'
+        });
+        console.log('Véhicule mis à jour avec succès');
+      } catch (vehiculeError) {
+        console.error('Erreur lors de la mise à jour du véhicule:', vehiculeError);
+      }
+    }
 
-  res.json(updatedReservation);
+    res.json(updatedReservation);
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde de la réservation:', error);
+    res.status(500);
+    throw new Error('Erreur lors de la sauvegarde de la réservation');
+  }
 });
 
 /**

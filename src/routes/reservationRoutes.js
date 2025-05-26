@@ -20,7 +20,7 @@ const { protect, admin } = require('../middleware/authMiddleware');
 
 // Routes privées (utilisateur connecté)
 router.route('/')
-  .get(protect, admin, getReservations)
+  .get(getReservations)
   .post(protect, createReservation);
 
 router.route('/me')
@@ -102,7 +102,7 @@ router.get('/diagnostic/conducteur', protect, async (req, res) => {
 router.get('/byconducteur/:id', protect, getReservationsByConducteurId);
 
 router.route('/:id')
-  .get(protect, getReservationById)
+  .get(getReservationById)
   .put(protect, admin, updateReservation);
 
 router.route('/:id/annulation')
