@@ -45,6 +45,7 @@ const destinationRoutes = require('./routes/destinationRoutes');
 const countryRoutes = require('./routes/countryRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
 const tarifRoutes = require('./routes/tarifRoutes');
+const transactionJournaliereRoutes = require('./routes/transactionJournaliereRoutes');
 
 // Vérifier si un administrateur par défaut doit être créé au démarrage
 if (process.env.CREATE_DEFAULT_ADMIN === 'true') {
@@ -130,6 +131,7 @@ app.use('/api/destinations', destinationRoutes);
 app.use('/api/countries', countryRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/tarifs', tarifRoutes);
+app.use('/api/transactions-journalieres', transactionJournaliereRoutes);
 
 // Servir les fichiers statiques en production
 if (process.env.NODE_ENV === 'production') {
