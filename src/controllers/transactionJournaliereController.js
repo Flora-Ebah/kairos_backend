@@ -181,7 +181,7 @@ const getTransactionJournaliere = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getOrCreateToday = asyncHandler(async (req, res) => {
   const { conducteurId } = req.params;
-  const { montantInitial = 0 } = req.query;
+  const montantInitial = req.query.montantInitial ? parseFloat(req.query.montantInitial) : 0;
 
   // Vérifier que le conducteur existe
   const conducteur = await User.findById(conducteurId);
@@ -195,7 +195,7 @@ const getOrCreateToday = asyncHandler(async (req, res) => {
     throw new Error('L\'utilisateur sélectionné n\'est pas un conducteur');
   }
 
-  const transaction = await TransactionJournaliere.getOrCreateToday(conducteurId, parseFloat(montantInitial));
+  const transaction = await TransactionJournaliere.getOrCreateToday(conducteurId, montantInitial);
 
   res.json({
     success: true,

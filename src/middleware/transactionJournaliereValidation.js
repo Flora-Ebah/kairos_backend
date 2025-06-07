@@ -50,7 +50,7 @@ const validateGetOrCreateToday = [
     .isMongoId()
     .withMessage('L\'ID du conducteur n\'est pas valide'),
   
-  body('montantInitial')
+  query('montantInitial')
     .optional()
     .isNumeric()
     .withMessage('Le montant initial doit être un nombre')

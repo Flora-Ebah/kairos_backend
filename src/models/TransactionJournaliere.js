@@ -145,27 +145,33 @@ TransactionJournaliereSchema.methods.cloturer = function(notes = '') {
 
 // Méthode statique pour créer ou récupérer la transaction du jour
 TransactionJournaliereSchema.statics.getOrCreateToday = async function(conducteurId, montantInitial = 0) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  let transaction = await this.findOne({
-    conducteur: conducteurId,
-    date: today
-  }).populate('conducteur', 'nom prenom email telephone');
-  
-  if (!transaction) {
-    transaction = await this.create({
-      conducteur: conducteurId,
-      date: today,
-      montantInitial: montantInitial,
-      soldeActuel: montantInitial
-    });
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    // Populer après création
-    transaction = await this.findById(transaction._id).populate('conducteur', 'nom prenom email telephone');
+    let transaction = await this.findOne({
+      conducteur: conducteurId,
+      date: today
+    }).populate('conducteur', 'nom prenom email telephone');
+    
+    if (!transaction) {
+      transaction = await this.create({
+        conducteur: conducteurId,
+        date: today,
+        montantInitial: montantInitial,
+        soldeActuel: montantInitial,
+        statut: 'active'
+      });
+      
+      // Populer après création
+      transaction = await this.findById(transaction._id)
+        .populate('conducteur', 'nom prenom email telephone');
+    }
+    
+    return transaction;
+  } catch (error) {
+    throw new Error(`Erreur lors de la création/récupération de la transaction: ${error.message}`);
   }
-  
-  return transaction;
 };
 
 // Méthode statique pour obtenir le résumé mensuel
