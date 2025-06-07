@@ -1,158 +1,154 @@
-const { body, validationResult } = require('express-validator');
+const { body, param, query } = require('express-validator');
+const { validationResult } = require('express-validator');
+
+// Middleware pour vérifier les résultats de validation
+const checkValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      errors: errors.array()
+    });
+  }
+  next();
+};
 
 // Validation pour la création d'une transaction journalière
-const validateCreateTransactionJournaliere = [
+const validateCreateTransaction = [
   body('conducteur')
     .notEmpty()
-    .withMessage('Le conducteur est obligatoire')
+    .withMessage('L\'ID du conducteur est requis')
     .isMongoId()
-    .withMessage('ID conducteur invalide'),
+    .withMessage('L\'ID du conducteur n\'est pas valide'),
   
   body('date')
     .optional()
     .isISO8601()
-    .withMessage('Format de date invalide'),
+    .withMessage('La date doit être au format ISO8601'),
   
   body('montantInitial')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Le montant initial doit être un nombre positif'),
+    .notEmpty()
+    .withMessage('Le montant initial est requis')
+    .isNumeric()
+    .withMessage('Le montant initial doit être un nombre')
+    .custom(value => value >= 0)
+    .withMessage('Le montant initial ne peut pas être négatif'),
   
   body('notes')
     .optional()
-    .isLength({ max: 500 })
-    .withMessage('Les notes ne peuvent pas dépasser 500 caractères'),
+    .isString()
+    .withMessage('Les notes doivent être une chaîne de caractères'),
   
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Erreurs de validation',
-        errors: errors.array()
-      });
-    }
-    next();
-  }
+  checkValidationErrors
 ];
 
-// Validation pour la mise à jour d'une transaction journalière
-const validateUpdateTransactionJournaliere = [
+// Validation pour l'obtention ou la création de la transaction du jour
+const validateGetOrCreateToday = [
+  param('conducteurId')
+    .notEmpty()
+    .withMessage('L\'ID du conducteur est requis')
+    .isMongoId()
+    .withMessage('L\'ID du conducteur n\'est pas valide'),
+  
   body('montantInitial')
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Le montant initial doit être un nombre positif'),
+    .isNumeric()
+    .withMessage('Le montant initial doit être un nombre')
+    .custom(value => value >= 0)
+    .withMessage('Le montant initial ne peut pas être négatif'),
+  
+  checkValidationErrors
+];
+
+// Validation pour l'ajout d'une transaction
+const validateAjouterTransaction = [
+  param('id')
+    .notEmpty()
+    .withMessage('L\'ID de la transaction journalière est requis')
+    .isMongoId()
+    .withMessage('L\'ID de la transaction journalière n\'est pas valide'),
+  
+  body('type')
+    .notEmpty()
+    .withMessage('Le type de transaction est requis')
+    .isIn(['recette', 'depense', 'commission', 'remboursement'])
+    .withMessage('Type de transaction invalide'),
+  
+  body('montant')
+    .notEmpty()
+    .withMessage('Le montant est requis')
+    .isNumeric()
+    .withMessage('Le montant doit être un nombre')
+    .custom(value => value > 0)
+    .withMessage('Le montant doit être supérieur à 0'),
+  
+  body('description')
+    .notEmpty()
+    .withMessage('La description est requise')
+    .isString()
+    .withMessage('La description doit être une chaîne de caractères'),
+  
+  body('courseId')
+    .optional()
+    .isMongoId()
+    .withMessage('L\'ID de la course n\'est pas valide'),
+  
+  body('reservationId')
+    .optional()
+    .isMongoId()
+    .withMessage('L\'ID de la réservation n\'est pas valide'),
+  
+  checkValidationErrors
+];
+
+// Validation pour la mise à jour d'une transaction
+const validateUpdateTransaction = [
+  param('id')
+    .notEmpty()
+    .withMessage('L\'ID de la transaction est requis')
+    .isMongoId()
+    .withMessage('L\'ID de la transaction n\'est pas valide'),
+  
+  body('montantInitial')
+    .optional()
+    .isNumeric()
+    .withMessage('Le montant initial doit être un nombre')
+    .custom(value => value >= 0)
+    .withMessage('Le montant initial ne peut pas être négatif'),
   
   body('notes')
     .optional()
-    .isLength({ max: 500 })
-    .withMessage('Les notes ne peuvent pas dépasser 500 caractères'),
+    .isString()
+    .withMessage('Les notes doivent être une chaîne de caractères'),
   
   body('statut')
     .optional()
     .isIn(['active', 'cloturee', 'en_attente'])
     .withMessage('Statut invalide'),
   
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Erreurs de validation',
-        errors: errors.array()
-      });
-    }
-    next();
-  }
-];
-
-// Validation pour l'ajout d'une transaction
-const validateAjouterTransaction = [
-  body('type')
-    .notEmpty()
-    .withMessage('Le type de transaction est obligatoire')
-    .isIn(['recette', 'depense', 'commission', 'remboursement'])
-    .withMessage('Type de transaction invalide'),
-  
-  body('montant')
-    .notEmpty()
-    .withMessage('Le montant est obligatoire')
-    .isFloat({ min: 0.01 })
-    .withMessage('Le montant doit être un nombre positif'),
-  
-  body('description')
-    .notEmpty()
-    .withMessage('La description est obligatoire')
-    .isLength({ min: 3, max: 200 })
-    .withMessage('La description doit contenir entre 3 et 200 caractères'),
-  
-  body('courseId')
-    .optional()
-    .isMongoId()
-    .withMessage('ID course invalide'),
-  
-  body('reservationId')
-    .optional()
-    .isMongoId()
-    .withMessage('ID réservation invalide'),
-  
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Erreurs de validation',
-        errors: errors.array()
-      });
-    }
-    next();
-  }
+  checkValidationErrors
 ];
 
 // Validation pour la clôture d'une transaction
 const validateCloturerTransaction = [
+  param('id')
+    .notEmpty()
+    .withMessage('L\'ID de la transaction est requis')
+    .isMongoId()
+    .withMessage('L\'ID de la transaction n\'est pas valide'),
+  
   body('notes')
     .optional()
-    .isLength({ max: 500 })
-    .withMessage('Les notes ne peuvent pas dépasser 500 caractères'),
+    .isString()
+    .withMessage('Les notes doivent être une chaîne de caractères'),
   
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Erreurs de validation',
-        errors: errors.array()
-      });
-    }
-    next();
-  }
-];
-
-// Validation pour obtenir ou créer la transaction du jour
-const validateGetOrCreateToday = [
-  body('montantInitial')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Le montant initial doit être un nombre positif'),
-  
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Erreurs de validation',
-        errors: errors.array()
-      });
-    }
-    next();
-  }
+  checkValidationErrors
 ];
 
 module.exports = {
-  validateCreateTransactionJournaliere,
-  validateUpdateTransactionJournaliere,
+  validateCreateTransaction,
+  validateGetOrCreateToday,
   validateAjouterTransaction,
-  validateCloturerTransaction,
-  validateGetOrCreateToday
+  validateUpdateTransaction,
+  validateCloturerTransaction
 }; 
