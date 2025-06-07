@@ -30,14 +30,23 @@ router.route('/')
   .post(validateCreateTransaction, createTransactionJournaliere)
   .get(getTransactionsJournalieres);
 
+// Route pour obtenir ou créer la transaction du jour
+router.route('/conducteur/:conducteurId/today')
+  .post(validateGetOrCreateToday, getOrCreateToday);
+
+// Route pour les statistiques globales
+router.route('/stats/global')
+  .get(getStatistiquesGlobales);
+
+// Route pour le résumé mensuel
+router.route('/conducteur/:conducteurId/resume/:mois/:annee')
+  .get(getResumeMensuel);
+
+// Routes avec ID
 router.route('/:id')
   .get(getTransactionJournaliere)
   .put(validateUpdateTransaction, updateTransactionJournaliere)
   .delete(deleteTransactionJournaliere);
-
-// Route pour obtenir ou créer la transaction du jour
-router.route('/conducteur/:conducteurId/today')
-  .post(validateGetOrCreateToday, getOrCreateToday);
 
 // Route pour ajouter une transaction
 router.route('/:id/transactions')
@@ -46,13 +55,5 @@ router.route('/:id/transactions')
 // Route pour clôturer une transaction
 router.route('/:id/cloturer')
   .put(validateCloturerTransaction, cloturerTransactionJournaliere);
-
-// Route pour le résumé mensuel
-router.route('/conducteur/:conducteurId/resume/:mois/:annee')
-  .get(getResumeMensuel);
-
-// Route pour les statistiques globales
-router.route('/stats/global')
-  .get(getStatistiquesGlobales);
 
 module.exports = router; 
