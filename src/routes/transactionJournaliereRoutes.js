@@ -32,7 +32,7 @@ router.route('/')
 
 // Route pour obtenir ou créer la transaction du jour
 router.route('/conducteur/:conducteurId/today')
-  .post(validateGetOrCreateToday, getOrCreateToday);
+  .get(validateGetOrCreateToday, getOrCreateToday);
 
 // Route pour les statistiques globales
 router.route('/stats/global')
