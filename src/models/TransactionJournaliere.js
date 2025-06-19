@@ -149,10 +149,24 @@ TransactionJournaliereSchema.statics.getOrCreateToday = async function(conducteu
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    // Déterminer le modèle du conducteur
+    let conducteurModel = 'User';
+    const user = await mongoose.model('User').findById(conducteurId);
+    if (!user) {
+      const userConducteur = await mongoose.model('UserConducteur').findById(conducteurId);
+      if (userConducteur) {
+        conducteurModel = 'UserConducteur';
+      }
+    }
+    
     let transaction = await this.findOne({
       conducteur: conducteurId,
       date: today
-    }).populate('conducteur', 'nom prenom email telephone');
+    }).populate({
+      path: 'conducteur',
+      select: 'nom prenom email telephone role statut',
+      model: conducteurModel
+    });
     
     if (!transaction) {
       transaction = await this.create({
@@ -165,11 +179,16 @@ TransactionJournaliereSchema.statics.getOrCreateToday = async function(conducteu
       
       // Populer après création
       transaction = await this.findById(transaction._id)
-        .populate('conducteur', 'nom prenom email telephone');
+        .populate({
+          path: 'conducteur',
+          select: 'nom prenom email telephone role statut',
+          model: conducteurModel
+        });
     }
     
     return transaction;
   } catch (error) {
+    console.error('Erreur dans getOrCreateToday:', error);
     throw new Error(`Erreur lors de la création/récupération de la transaction: ${error.message}`);
   }
 };

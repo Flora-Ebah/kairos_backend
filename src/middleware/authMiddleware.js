@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
+const UserConducteur = require('../models/UserConducteur');
 
 // Middleware pour protéger les routes
 const protect = asyncHandler(async (req, res, next) => {
@@ -18,8 +19,13 @@ const protect = asyncHandler(async (req, res, next) => {
       // Vérifier le token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Récupérer l'utilisateur
+      // Récupérer l'utilisateur d'abord dans User, puis dans UserConducteur
       req.user = await User.findById(decoded.id).select('-password');
+      
+      if (!req.user) {
+        // Essayer dans UserConducteur si pas trouvé dans User
+        req.user = await UserConducteur.findById(decoded.id).select('-password');
+      }
 
       // Vérifier si l'utilisateur existe
       if (!req.user) {
@@ -33,8 +39,12 @@ const protect = asyncHandler(async (req, res, next) => {
         throw new Error('Compte inactif. Veuillez contacter un administrateur.');
       }
 
-      // Mettre à jour la dernière connexion
-      await User.findByIdAndUpdate(req.user._id, { lastLogin: Date.now() });
+      // Mettre à jour la dernière connexion selon le type d'utilisateur
+      if (req.user.role === 'conducteur' && await UserConducteur.findById(req.user._id)) {
+        await UserConducteur.findByIdAndUpdate(req.user._id, { lastLogin: Date.now() });
+      } else {
+        await User.findByIdAndUpdate(req.user._id, { lastLogin: Date.now() });
+      }
 
       next();
     } catch (error) {

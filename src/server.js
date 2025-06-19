@@ -21,7 +21,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // Configuration CORS totalement permissive pour le débogage
 app.use(cors({
-  origin: '*',  // Permet toutes les origines
+  origin: process.env.FRONTEND_URL || 'https://kairos-bay.vercel.app',  // URL du frontend
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   credentials: true,
@@ -46,6 +46,9 @@ const countryRoutes = require('./routes/countryRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
 const tarifRoutes = require('./routes/tarifRoutes');
 const transactionJournaliereRoutes = require('./routes/transactionJournaliereRoutes');
+const gestionTransportRoutes = require('./routes/gestionTransportRoutes');
+const financeRoutes = require('./routes/financeRoutes');
+const paiementRoutes = require('./routes/paiementRoutes');
 
 // Vérifier si un administrateur par défaut doit être créé au démarrage
 if (process.env.CREATE_DEFAULT_ADMIN === 'true') {
@@ -132,6 +135,19 @@ app.use('/api/countries', countryRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/tarifs', tarifRoutes);
 app.use('/api/transactions-journalieres', transactionJournaliereRoutes);
+
+// Routes finance
+app.use('/api/finance', financeRoutes);
+
+// Routes paiements (clients)
+app.use('/api/paiements', paiementRoutes);
+
+// Routes pour la gestion de transport (conducteur) - DOIT ÊTRE AVANT la route générale
+const gestionTransportConducteurRoutes = require('./routes/gestionTransportConducteurRoutes');
+app.use('/api/gestion-transport/conducteur', gestionTransportConducteurRoutes);
+
+// Route générale gestion transport (admin) - DOIT ÊTRE APRÈS les routes spécifiques
+app.use('/api/gestion-transport', gestionTransportRoutes);
 
 // Servir les fichiers statiques en production
 if (process.env.NODE_ENV === 'production') {

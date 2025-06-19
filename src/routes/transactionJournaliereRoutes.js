@@ -19,7 +19,8 @@ const {
   cloturerTransactionJournaliere,
   getResumeMensuel,
   deleteTransactionJournaliere,
-  getStatistiquesGlobales
+  getStatistiquesGlobales,
+  checkTodayTransaction
 } = require('../controllers/transactionJournaliereController');
 
 // Routes protégées par authentification et rôle admin
@@ -33,6 +34,10 @@ router.route('/')
 // Route pour obtenir ou créer la transaction du jour
 router.route('/conducteur/:conducteurId/today')
   .get(validateGetOrCreateToday, getOrCreateToday);
+
+// Route pour vérifier si un conducteur a une transaction aujourd'hui
+router.route('/conducteur/:conducteurId/check-today')
+  .get(checkTodayTransaction);
 
 // Route pour les statistiques globales
 router.route('/stats/global')

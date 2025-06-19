@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const TransactionJournaliere = require('../models/TransactionJournaliere');
 const User = require('../models/User');
+const UserConducteur = require('../models/UserConducteur');
 const mongoose = require('mongoose');
 
 // @desc    Créer une nouvelle transaction journalière
@@ -183,8 +184,13 @@ const getOrCreateToday = asyncHandler(async (req, res) => {
   const { conducteurId } = req.params;
   const montantInitial = req.query.montantInitial ? parseFloat(req.query.montantInitial) : 0;
 
-  // Vérifier que le conducteur existe
-  const conducteur = await User.findById(conducteurId);
+  // Vérifier que le conducteur existe dans l'un des deux modèles
+  let conducteur = await User.findById(conducteurId);
+  if (!conducteur) {
+    // Si pas trouvé dans User, chercher dans UserConducteur
+    conducteur = await UserConducteur.findById(conducteurId);
+  }
+  
   if (!conducteur) {
     res.status(404);
     throw new Error('Conducteur non trouvé');
@@ -195,7 +201,31 @@ const getOrCreateToday = asyncHandler(async (req, res) => {
     throw new Error('L\'utilisateur sélectionné n\'est pas un conducteur');
   }
 
-  const transaction = await TransactionJournaliere.getOrCreateToday(conducteurId, montantInitial);
+  let transaction = await TransactionJournaliere.getOrCreateToday(conducteurId, montantInitial);
+  
+  // S'assurer que le conducteur est correctement peuplé
+  transaction = await TransactionJournaliere.findById(transaction._id)
+    .populate({
+      path: 'conducteur',
+      select: 'nom prenom email telephone role statut',
+      model: conducteur.constructor.modelName // Utiliser le bon modèle (User ou UserConducteur)
+    })
+    .populate('transactions.createdBy', 'nom prenom');
+
+  if (!transaction.conducteur) {
+    // Mettre à jour la référence du conducteur si nécessaire
+    transaction.conducteur = conducteur._id;
+    await transaction.save();
+    
+    // Repeupler après la mise à jour
+    transaction = await TransactionJournaliere.findById(transaction._id)
+      .populate({
+        path: 'conducteur',
+        select: 'nom prenom email telephone role statut',
+        model: conducteur.constructor.modelName
+      })
+      .populate('transactions.createdBy', 'nom prenom');
+  }
 
   res.json({
     success: true,
@@ -466,6 +496,61 @@ const getStatistiquesGlobales = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Vérifier si un conducteur a une transaction aujourd'hui
+// @route   GET /api/transactions-journalieres/conducteur/:conducteurId/check-today
+// @access  Private/Admin
+const checkTodayTransaction = asyncHandler(async (req, res) => {
+  const { conducteurId } = req.params;
+
+  // Chercher le conducteur dans les deux modèles
+  const conducteur = await Promise.all([
+    User.findById(conducteurId),
+    UserConducteur.findById(conducteurId)
+  ]).then(([userConducteur, conducteurSpecifique]) => userConducteur || conducteurSpecifique);
+
+  if (!conducteur) {
+    return res.status(404).json({
+      success: false,
+      message: 'Conducteur non trouvé'
+    });
+  }
+
+  // Vérifier si le conducteur est actif
+  if (conducteur.statut !== 'actif') {
+    return res.status(400).json({
+      success: false,
+      message: 'Le conducteur n\'est pas actif'
+    });
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const transaction = await TransactionJournaliere.findOne({
+    conducteur: conducteurId,
+    date: {
+      $gte: today,
+      $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+    }
+  });
+
+  res.json({
+    success: true,
+    hasTransaction: !!transaction,
+    transaction: transaction ? {
+      id: transaction._id,
+      montant: transaction.montantInitial,
+      date: transaction.date
+    } : null,
+    conducteur: {
+      id: conducteur._id,
+      nom: conducteur.nom,
+      prenom: conducteur.prenom,
+      statut: conducteur.statut
+    }
+  });
+});
+
 module.exports = {
   createTransactionJournaliere,
   getTransactionsJournalieres,
@@ -476,5 +561,6 @@ module.exports = {
   cloturerTransactionJournaliere,
   getResumeMensuel,
   deleteTransactionJournaliere,
-  getStatistiquesGlobales
+  getStatistiquesGlobales,
+  checkTodayTransaction
 }; 
